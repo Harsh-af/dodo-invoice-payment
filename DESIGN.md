@@ -1,4 +1,4 @@
-# Invoice & Payment Service — Design Document
+# Invoice & Payment Service - Design Document
 
 ## 1. Data Model
 
@@ -78,7 +78,7 @@ The HTTP client uses a **5s timeout**. On timeout the attempt stays **`pending`*
 
 ### (c) PSP success then crash before persist
 
-Idempotency record is stored **after** PSP result is persisted. If we crash after PSP success but before commit, retry with the same key may call PSP again — **mock PSP is not idempotent**, so production would use PSP idempotency keys. Mitigation documented: store `pending` + PSP reference before calling, or use PSP keys; on retry, reconcile by `psp_ref` if attempt already succeeded.
+Idempotency record is stored **after** PSP result is persisted. If we crash after PSP success but before commit, retry with the same key may call PSP again - **mock PSP is not idempotent**, so production would use PSP idempotency keys. Mitigation documented: store `pending` + PSP reference before calling, or use PSP keys; on retry, reconcile by `psp_ref` if attempt already succeeded.
 
 ### (d) Idempotency key reused with different body
 
@@ -86,7 +86,7 @@ Request body is SHA-256 hashed. Scope is **per invoice pay URL** (`/invoices/{id
 
 ### (e) POST /pay on `paid` invoice
 
-**409 Conflict** — `invoice is already paid`. No PSP call.
+**409 Conflict** - `invoice is already paid`. No PSP call.
 
 **Why not advisory locks / serializable?** Row lock is simpler, easy to reason about in tests, and sufficient for single-invoice contention. Serializable isolation adds false conflicts across unrelated rows.
 
@@ -116,18 +116,18 @@ Request body is SHA-256 hashed. Scope is **per invoice pay URL** (`/invoices/{id
 
 ## 6. What I Cut and Why
 
-1. **Refunds / partial payments** — out of scope; would need credit notes and PSP refund idempotency.
-2. **OAuth / user sessions** — assignment specifies API keys only.
-3. **Rate limiting** — discussed in §7 instead of building.
-4. **Email notifications** — webhooks cover integrators; email is redundant for MVP.
-5. **Admin UI for key rotation** — seed + env demo key suffices for take-home.
+1. **Refunds / partial payments** - out of scope; would need credit notes and PSP refund idempotency.
+2. **OAuth / user sessions** - assignment specifies API keys only.
+3. **Rate limiting** - discussed in §7 instead of building.
+4. **Email notifications** - webhooks cover integrators; email is redundant for MVP.
+5. **Admin UI for key rotation** - seed + env demo key suffices for take-home.
 
 ---
 
 ## 7. Production Readiness Gaps
 
-1. **Observability** — structured tracing, metrics on pay latency, webhook success rate, alerting on exhausted deliveries.
-2. **Rate limiting** — per API key and per IP on `/pay` to prevent brute force and accidental loops.
-3. **Audit log** — immutable event stream for compliance (who voided, who rotated keys).
+1. **Observability** - structured tracing, metrics on pay latency, webhook success rate, alerting on exhausted deliveries.
+2. **Rate limiting** - per API key and per IP on `/pay` to prevent brute force and accidental loops.
+3. **Audit log** - immutable event stream for compliance (who voided, who rotated keys).
 
 Also needed before real money: PSP idempotency keys, secrets management (Vault), and webhook endpoint verification (challenge handshake).
