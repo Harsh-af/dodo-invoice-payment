@@ -1,6 +1,6 @@
 # Dodo Invoice & Payment Service (Take-Home)
 
-Minimal invoice and payment API in **Rust (Axum)** with PostgreSQL, a mock PSP, signed webhooks, and one-command Docker setup.
+Invoice and payment API in **Rust (Axum)** with PostgreSQL, a mock PSP, signed webhooks, and one-command Docker setup.
 
 ## Quick start
 
@@ -8,23 +8,12 @@ Minimal invoice and payment API in **Rust (Axum)** with PostgreSQL, a mock PSP, 
 docker compose up --build
 ```
 
-On a **fresh database** (first `docker compose up`), the service applies migrations and seeds a demo business, API key, and webhook endpoint automatically. No manual DB setup is required.
-
-Wait until `invoice-service` logs show the demo API key. Default key (also in `docker-compose.yml` as `DEMO_API_KEY`):
-
-```
+### Demo Key:
 dodo_demo_key
-```
-
 Base URL: `http://localhost:8080`
 
 ## Demo Video
-
-Record your 5–10 minute Loom (or equivalent) and paste the link here:
-
-```
-TODO: https://www.loom.com/share/your-video-id
-```
+https://drive.google.com/file/d/1FLFwfWsJf7jVPjQ72LOY9ejzny4tc6no/view?usp=sharing
 
 ## curl examples
 
