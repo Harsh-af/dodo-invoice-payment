@@ -40,7 +40,7 @@ services:
       DATABASE_URL: postgres://invoice:invoice@db:5432/invoice
       PSP_BASE_URL: http://mock-psp:8081
       PSP_TIMEOUT_SECS: "5"
-      DEMO_API_KEY: dodo_sk_demo_key_for_assignment_only
+      DEMO_API_KEY: dodo_demo_key
       RUST_LOG: invoice_service=info
     depends_on:
       db:

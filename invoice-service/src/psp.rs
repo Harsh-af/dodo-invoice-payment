@@ -70,11 +70,3 @@ impl PspClient {
         }
     }
 }
-
-pub fn card_token_hint(token: &str) -> String {
-    if token.len() <= 8 {
-        token.to_string()
-    } else {
-        format!("{}…", &token[..8])
-    }
-}

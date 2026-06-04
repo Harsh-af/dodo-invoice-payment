@@ -77,7 +77,7 @@ CREATE TABLE idempotency_records (
     response_status INTEGER NOT NULL,
     response_body JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (business_id, idempotency_key)
+    UNIQUE (business_id, idempotency_key, request_path)
 );
 
 CREATE TABLE webhook_endpoints (

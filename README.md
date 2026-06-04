@@ -8,10 +8,12 @@ Minimal invoice and payment API in **Rust (Axum)** with PostgreSQL, a mock PSP, 
 docker compose up --build
 ```
 
-Wait until logs show the demo API key. Default key (also in compose):
+On a **fresh database** (first `docker compose up`), the service applies migrations and seeds a demo business, API key, and webhook endpoint automatically. No manual DB setup is required.
+
+Wait until `invoice-service` logs show the demo API key. Default key (also in `docker-compose.yml` as `DEMO_API_KEY`):
 
 ```
-dodo_sk_demo_key_for_assignment_only
+dodo_demo_key
 ```
 
 Base URL: `http://localhost:8080`
@@ -29,8 +31,13 @@ TODO: https://www.loom.com/share/your-video-id
 Set variables:
 
 ```bash
-export API_KEY="dodo_sk_demo_key_for_assignment_only"
+export API_KEY="dodo_demo_key"
 export BASE="http://localhost:8080"
+```
+
+## Watch webhook events:
+```bash
+docker compose logs -f webhook-receiver
 ```
 
 ### 1. Create customer
@@ -39,7 +46,7 @@ export BASE="http://localhost:8080"
 curl -s -X POST "$BASE/customers" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Ada Lovelace","email":"ada@example.com"}'
+  -d '{"name":"Harsh Karanwal","email":"harshkaranwal@gmail.com"}'
 ```
 
 ### 2. Create invoice (open, ready to pay)
@@ -49,21 +56,21 @@ curl -s -X POST "$BASE/invoices" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "customer_id": "<CUSTOMER_UUID>",
+    "customer_id": "dea025f6-4c5e-4224-822f-8f3141d42aba",
     "due_date": "2026-12-31",
     "finalize": true,
     "line_items": [
-      {"description": "Consulting", "quantity": 2, "unit_amount_cents": 5000}
+      {"description": "GTA 6", "quantity": 6, "unit_amount_cents": 2024}
     ]
   }'
 ```
 
-Server computes `total_cents` = 10000.
+Server computes `total_cents` = 6048
 
 ### 3. Pay successfully
 
 ```bash
-curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
+curl -s -X POST "$BASE/invoices/0403031e-010f-4080-a940-e0a85466322b/pay" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: pay-success-1" \
@@ -87,7 +94,7 @@ Invoice stays `open`; webhook `invoice.payment_failed` is enqueued. Watch webhoo
 With stack running:
 
 ```bash
-set INTEGRATION_TEST=1
+INTEGRATION_TEST=1 cargo test --all
 cargo test -p invoice-service --test integration
 ```
 

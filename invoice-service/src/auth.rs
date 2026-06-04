@@ -41,14 +41,24 @@ pub async fn extract_auth(pool: &PgPool, headers: &axum::http::HeaderMap) -> App
             AppError::Unauthorized("Authorization must be Bearer <api_key>".into())
         })?;
 
-    lookup_api_key(pool, key).await
+    extract_auth_lookup(pool, key).await
+}
+
+/// Public for startup seed verification.
+pub async fn extract_auth_lookup(pool: &PgPool, full_key: &str) -> AppResult<BusinessAuth> {
+    lookup_api_key(pool, full_key).await
+}
+
+pub fn api_key_prefix(full_key: &str) -> String {
+    let end = full_key.len().min(12);
+    full_key[..end].to_string()
 }
 
 async fn lookup_api_key(pool: &PgPool, full_key: &str) -> AppResult<BusinessAuth> {
     if full_key.len() < 12 {
         return Err(AppError::Unauthorized("invalid API key".into()));
     }
-    let prefix = &full_key[..12];
+    let prefix = api_key_prefix(full_key);
 
     let row = sqlx::query_as::<_, ApiKeyRow>(
         r#"
@@ -90,7 +100,7 @@ pub fn generate_api_key() -> (String, String, String) {
         })
         .collect();
     let full = format!("dodo_sk_{secret}");
-    let prefix = full[..12].to_string();
+    let prefix = api_key_prefix(&full);
     let hash = bcrypt::hash(&full, 12).expect("bcrypt hash");
     (full, prefix, hash)
 }

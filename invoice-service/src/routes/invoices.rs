@@ -1,6 +1,6 @@
 use crate::auth::BusinessAuth;
 use crate::error::{AppError, AppResult};
-use crate::psp::{card_token_hint, PspClient, PspOutcome};
+use crate::psp::{PspClient, PspOutcome};
 use crate::state_machine::InvoiceState;
 use crate::webhooks;
 use axum::{
@@ -298,8 +298,14 @@ pub async fn pay_invoice(
     let request_hash = hash_request(&body);
     let path = format!("/invoices/{id}/pay");
 
-    if let Some(cached) =
-        check_idempotency(state.pool.as_ref(), auth.business_id, &idem_key, &request_hash).await?
+    if let Some(cached) = check_idempotency(
+        state.pool.as_ref(),
+        auth.business_id,
+        &idem_key,
+        &path,
+        &request_hash,
+    )
+    .await?
     {
         return Ok(cached);
     }
@@ -363,7 +369,7 @@ pub async fn pay_invoice(
         "#,
     )
     .bind(id)
-    .bind(card_token_hint(&body.card_token))
+    .bind(&body.card_token)
     .bind(&idem_key)
     .fetch_one(&mut *tx)
     .await
@@ -624,17 +630,19 @@ async fn check_idempotency(
     pool: &PgPool,
     business_id: Uuid,
     key: &str,
+    path: &str,
     request_hash: &str,
 ) -> AppResult<Option<(StatusCode, Json<PayInvoiceResponse>)>> {
     let row = sqlx::query_as::<_, IdemRow>(
         r#"
         SELECT request_hash, response_status, response_body
         FROM idempotency_records
-        WHERE business_id = $1 AND idempotency_key = $2
+        WHERE business_id = $1 AND idempotency_key = $2 AND request_path = $3
         "#,
     )
     .bind(business_id)
     .bind(key)
+    .bind(path)
     .fetch_optional(pool)
     .await
     .map_err(|e| AppError::Internal(e.into()))?;
@@ -668,7 +676,7 @@ async fn store_idempotency(
         INSERT INTO idempotency_records
             (business_id, idempotency_key, request_path, request_hash, response_status, response_body)
         VALUES ($1, $2, $3, $4, $5, $6)
-        ON CONFLICT (business_id, idempotency_key) DO NOTHING
+        ON CONFLICT (business_id, idempotency_key, request_path) DO NOTHING
         "#,
     )
     .bind(business_id)

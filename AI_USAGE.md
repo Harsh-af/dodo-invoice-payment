@@ -1,9 +1,14 @@
 # AI Usage Disclosure
 
-## Tools used
-
-- **Cursor (Claude)** — Primary assistant for scaffolding the Rust/Axum workspace, docker-compose layout, SQL migrations, and drafting `DESIGN.md` / `README.md` / OpenAPI from the assignment PDF.
-- **Cursor autocomplete** — Boilerplate for serde structs and SQLx query shapes.
+## Tools used and for what
+- **Cursor (Opus 4.8/Auto)**
+  - Assistanece with building the Rust/Axum workspace
+  - docker-compose layout was desined and configured by me, polished by Cursor AI
+  - SQL migrations
+  - Polishing `DESIGN.md` / `README.md` / OpenAPI according to the assignment PDF.
+- **Cursor autocomplete** - Boilerplate for serde structs and SQLx query shapes.
+- ChatGPT - mostly for rubber ducking
+  - To cross question my own Scrum on the environmenbt for this project
 
 ## Three decisions made independently of AI
 

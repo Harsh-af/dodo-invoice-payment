@@ -7,7 +7,7 @@ use std::env;
 use std::time::Duration;
 use uuid::Uuid;
 
-const API_KEY: &str = "dodo_sk_demo_key_for_assignment_only";
+const API_KEY: &str = "dodo_demo_key";
 const BASE: &str = "http://127.0.0.1:8080";
 
 fn enabled() -> bool {

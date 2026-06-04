@@ -23,7 +23,7 @@ erDiagram
 | `invoices` | UUID | `invoice_state` enum, `total_cents` server-computed |
 | `invoice_line_items` | UUID | quantity × unit_amount_cents; never client total |
 | `payment_attempts` | UUID | `(invoice_id, idempotency_key)` unique |
-| `idempotency_records` | UUID | Cached pay responses per business + key |
+| `idempotency_records` | UUID | Cached pay responses per `(business_id, idempotency_key, request_path)` |
 | `webhook_endpoints` | UUID | Per-business URL + signing secret |
 | `webhook_deliveries` | UUID | Outbox queue with retry schedule |
 
@@ -82,7 +82,7 @@ Idempotency record is stored **after** PSP result is persisted. If we crash afte
 
 ### (d) Idempotency key reused with different body
 
-Request body is SHA-256 hashed. Mismatch → **409 Conflict** (`idempotency key reused with different request body`). Same body → cached JSON response, no new attempt.
+Request body is SHA-256 hashed. Scope is **per invoice pay URL** (`/invoices/{id}/pay`), so the same `Idempotency-Key` on two different invoices is two independent requests. Mismatch on the same URL → **409 Conflict** (`idempotency key reused with different request body`). Same URL + same body → cached JSON response, no new attempt.
 
 ### (e) POST /pay on `paid` invoice
 
