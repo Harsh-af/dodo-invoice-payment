@@ -1,21 +1,34 @@
-# Dodo Invoice & Payment Service (Take-Home)
+# Dodo Invoice & Payment Service
 
-Invoice and payment API in **Rust (Axum)** with PostgreSQL, a mock PSP, signed webhooks, and one-command Docker setup.
+Invoice and payment API in **Rust (Axum)** with PostgreSQL, a mock PSP, signed webhooks, and the one-command Docker setup.
+
+## Demo Video
+The demo is 17 minutes (slightly above the recommended duration). It covers all required sections from the assignment specification.
+- Video URL : [Google Drive](https://drive.google.com/file/d/1FLFwfWsJf7jVPjQ72LOY9ejzny4tc6no/view?usp=sharing)
+
+One thing I realized after recording was that I forgot to show the live webhook request logs during the demo. So I have included screenshots of the webhook delivery logs below:
+1. Image URL: [Docker Image server logs](https://drive.google.com/file/d/1V-ADPpjmC0CUlAXDl8TsGeSz8OoFs0GF/view?usp=sharing) <br/>
+2. Image URL: [DB logs](https://drive.google.com/file/d/1CNR-VwSOMVYf0GGZnNcNtZdiUmqjZA-p/view?usp=sharing)
 
 ## Quick start
 
+### Clone the git
+```bash
+git clone https://github.com/Harsh-af/dodo-invoice-payment.git
+```
+
+### Docker up+build
 ```bash
 docker compose up --build
 ```
 
-### Demo Key:
-dodo_demo_key
+### Access Details:
+dodo_demo_key <br/>
 Base URL: `http://localhost:8080`
 
-## Demo Video
-https://drive.google.com/file/d/1FLFwfWsJf7jVPjQ72LOY9ejzny4tc6no/view?usp=sharing
+<br/>
 
-## curl examples
+## curl commands(directly in the bash)
 
 Set variables:
 
@@ -24,12 +37,16 @@ export API_KEY="dodo_demo_key"
 export BASE="http://localhost:8080"
 ```
 
-## Watch webhook events:
+## Watch webhook events(in a different bash tab):
 ```bash
 docker compose logs -f webhook-receiver
 ```
 
-### 1. Create customer
+<br/>
+
+## API Examples
+
+### Create customer
 
 ```bash
 curl -s -X POST "$BASE/customers" \
@@ -38,35 +55,37 @@ curl -s -X POST "$BASE/customers" \
   -d '{"name":"Harsh Karanwal","email":"harshkaranwal@gmail.com"}'
 ```
 
-### 2. Create invoice (open, ready to pay)
+### Create Invoice
 
 ```bash
 curl -s -X POST "$BASE/invoices" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "customer_id": "dea025f6-4c5e-4224-822f-8f3141d42aba",
+    "customer_id": "<CUSTOMER_UUID>",
     "due_date": "2026-12-31",
     "finalize": true,
     "line_items": [
-      {"description": "GTA 6", "quantity": 6, "unit_amount_cents": 2024}
+      {"description": "GTA 6", "quantity": 2, "unit_amount_cents": 1423}
     ]
   }'
 ```
 
-Server computes `total_cents` = 6048
+<br/>
 
-### 3. Pay successfully
+## Payment Cases
+
+### Payment Success
 
 ```bash
-curl -s -X POST "$BASE/invoices/0403031e-010f-4080-a940-e0a85466322b/pay" \
+curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: pay-success-1" \
   -d '{"card_token":"tok_success"}'
 ```
 
-### 4. Pay declined
+### Payment declined
 
 ```bash
 curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
@@ -76,30 +95,69 @@ curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
   -d '{"card_token":"tok_card_declined"}'
 ```
 
-Invoice stays `open`; webhook `invoice.payment_failed` is enqueued. Watch webhook receiver logs: `docker compose logs -f webhook-receiver`.
-
-## Integration tests
-
-With stack running:
+### Concurrent Payment Test
 
 ```bash
-INTEGRATION_TEST=1 cargo test --all
-cargo test -p invoice-service --test integration
+curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: test-1" \
+  -d '{"card_token":"tok_success"}' &
+
+curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: test-2" \
+  -d '{"card_token":"tok_success"}' &
+
+wait
 ```
 
-Requires Rust locally, or run inside a Rust container. Tests cover concurrent pay, idempotency replay, and `tok_network_error`.
+### tok_timeout
 
-## Project layout
+```bash
+export INVOICE_ID="<INVOICE_UUID>"
+
+time curl -s -w "\nHTTP %{http_code}\n" -X POST "$BASE/invoices/$INVOICE_ID/pay" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: timeout-$(uuidgen)" \
+  -d '{"card_token":"tok_timeout"}'
+```
+
+### tok_network_error
+
+```bash
+curl -s -X POST "$BASE/invoices/<INVOICE_UUID>/pay" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: net-error-$(date +%s)" \
+  -d '{"card_token":"tok_network_error"}'
+```
+
+<br/>
+
+## Project Structure
 
 | Path | Description |
 |------|-------------|
-| `invoice-service/` | Main API |
+| `invoice-service/` | Core API service |
 | `mock-psp/` | Mock payment processor (`:8081`) |
-| `webhook-receiver/` | Logs inbound webhooks (`:8090`) |
+| `webhook-receiver/` | Logs webhook deliveries (`:8090`) |
 | `migrations/` | PostgreSQL schema |
-| `DESIGN.md` | Primary design deliverable |
-| `docs/openapi.yaml` | API spec |
+| `DESIGN.md` | System design document |
+| `docs/openapi.yaml` | API specification |
 
-## Language choice
+---
 
-Rust (Axum) per assignment preference. All services build in Docker without a local Rust install.
+## Tech Stack
+
+- Rust (Axum)
+- PostgreSQL
+- Docker / Docker Compose
+- Mock PSP service
+- Webhook signing (HMAC-SHA256)
+
+---
+
+* All services are fully containerized and require no local Rust installation.
