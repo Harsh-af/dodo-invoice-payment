@@ -1,30 +1,35 @@
 # AI Usage Disclosure
 
-## Tools used and for what
+## Tools Used and Purpose
+
 - **Cursor (Opus 4.8/Auto)**
   - Assistanece with building the Rust/Axum workspace
   - handler, models and routing
   - docker-compose layout was desined and configured by me, polished by Cursor AI
   - SQL migrations
-  - Polishing `DESIGN.md` / `README.md` / OpenAPI according to the assignment PDF.
+  - Polishing `DESIGN.md`, `README.md` and OpenAPI specification based on assignment requirements
+
 - **Cursor autocomplete** - Boilerplate for serde structs and SQLx query shapes.
-- ChatGPT - mostly for rubber ducking
-  - To cross question my own Scrum on the environmenbt for this project
+
+- **ChatGPT**
+  - Mostly for rubber ducking
+  - To cross question my own scrum on the environmenbt for this project
+
+---
 
 ## Three decisions made independently of AI
 
-1. **Row-level `FOR UPDATE` + pending-attempt guard (not serializable isolation)**  
-   AI suggested advisory locks as an option. I chose row locks because contention is per-invoice, the behavior is easy to demonstrate in a concurrency test, and we avoid database-wide serialization rollbacks.
+1. **Row-level `FOR UPDATE` + pending-attempt guard (instead of serializable isolation)**  
+AI suggested advisory locks and higher isolation levels. I used row-level locking because contention is scoped per invoice, and it keeps concurrency behavior deterministic and easy to validate in tests without introducing global transaction conflicts.
 
-2. **202 Accepted + background completion for `tok_timeout`**  
-   AI initially leaned toward returning 504 Gateway Timeout. I rejected that because it forces clients to treat timeout as failure while the PSP may still succeed. Returning 202 with a `pending` attempt matches async payment UX and keeps the HTTP handler under 5 seconds.
+2. **Per-scope idempotency design `(business_id, request_path, idempotency_key)`**  
+Instead of a single global idempotency namespace, I scoped keys by tenant and endpoint. This prevents accidental cross-endpoint collisions and keeps lookup logic simple and indexed at the database level.
 
-3. **Webhook outbox table with polling worker**  
-   AI mentioned firing-and-forgetting `tokio::spawn` per event. I chose a durable outbox so retries survive process restarts and backoff is visible in SQL for debugging.
+3. **Webhook outbox table instead of in-memory async delivery**  
+AI suggested spawning background tasks per event. I used a persistent outbox so webhook delivery survives process restarts and retries are fully traceable in the database, which is important for debugging and failure recovery.
 
 ## One thing AI got wrong (and how I verified)
 
-1. #### API key hashing: bcrypt instead of SHA-256
-AI suggested storing API keys using SHA-256 hashing. I chose bcrypt instead because API keys are credentials and benefit from a deliberately slow password-hashing algorithm. This makes brute-force attacks significantly more expensive if the database is ever leaked. The performance impact is negligible because API keys are verified infrequently compared to normal application queries.
+1. **API key hashing approach (bcrypt instead of SHA-256)** <br/> AI suggested storing API keys using SHA-256 hashing. I chose bcrypt instead because API keys are credentials and benefit from a deliberately slow password-hashing algorithm. This makes brute-force attacks significantly more expensive if the database is ever leaked. The performance impact is negligible because API keys are verified infrequently compared to normal application queries.
 
-2. AI placed `AuthContext` as a separate Axum `State` alongside `AppState`, which does not compile - Axum allows one `State` type per router branch. I merged auth into `AppState` and verified by building the Docker image (`docker compose build`). I also manually traced the pay flow to ensure idempotency is checked before any PSP HTTP call.
+2. **Axum state design structure** <br/> AI initially separated authentication context from application state, which is invalid in Axum due to single-state router constraints. I consolidated it into a single `AppState` and validated the fix by rebuilding the service (`docker compose build`) and running integration flows.
